@@ -4,25 +4,27 @@ import torchvision.transforms as transforms
 from torchvision.models import convnext_base, ConvNeXt_Base_Weights
 import torch.nn as nn
 from PIL import Image
+import gdown
+import os
 
-# Set up device
+st.set_page_config(page_title="Blood Group Detection", page_icon="🩺")
+model_path = "convnext_model.pth"
+if not os.path.exists(model_path):
+    url = "https://drive.google.com/uc?id=https://drive.google.com/file/d/1qtNsbahGSzvrEae9-XkSdUD48iDwOS0E/view?usp=sharing"
+    gdown.download(url, model_path, quiet=False)
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# Class names
 class_names = ['A-', 'A+', 'AB-', 'AB+', 'B-', 'B+', 'O-', 'O+']
-
-# Load the model
 model = convnext_base(weights=ConvNeXt_Base_Weights.DEFAULT)
 num_ftrs = model.classifier[2].in_features
 model.classifier[2] = nn.Sequential(
     nn.Dropout(0.4),
     nn.Linear(num_ftrs, len(class_names))
 )
-model.load_state_dict(torch.load('convnext_model.pth', map_location=device))
+model.load_state_dict(torch.load(model_path, map_location=device))
 model = model.to(device)
 model.eval()
 
-# Transformations
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.RandomHorizontalFlip(),
@@ -32,7 +34,6 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-# Streamlit app
 st.title("Blood Group Detection from Fingerprint")
 st.write("Upload a fingerprint image to predict the blood group.")
 uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png", "bmp", "webp"])
