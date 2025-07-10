@@ -1,1 +1,3 @@
-convnext_model.pth 
+__pycache__/
+*.pyc
+*.pth

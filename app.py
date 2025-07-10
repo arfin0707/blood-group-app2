@@ -1,51 +1,59 @@
 import streamlit as st
 import torch
-import torchvision.transforms as transforms
-from torchvision.models import convnext_base, ConvNeXt_Base_Weights
 import torch.nn as nn
+from torchvision.models import efficientnet_b3, EfficientNet_B3_Weights
 from PIL import Image
 import gdown
 import os
 
-st.set_page_config(page_title="Blood Group Detection", page_icon="🩺")
-model_path = "convnext_model.pth"
-if not os.path.exists(model_path):
-    url = "https://drive.google.com/uc?id=https://drive.google.com/file/d/1qtNsbahGSzvrEae9-XkSdUD48iDwOS0E/view?usp=sharing"
-    gdown.download(url, model_path, quiet=False)
+# === Configuration ===
+MODEL_URL = "https://drive.google.com/uc?id=1GjN2Sdi2YpAVwZ06h2eLon4kp4iW2j1S"  # Updated model URL
+MODEL_FILENAME = "eff_model_1000.pth"
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-class_names = ['A-', 'A+', 'AB-', 'AB+', 'B-', 'B+', 'O-', 'O+']
-model = convnext_base(weights=ConvNeXt_Base_Weights.DEFAULT)
-num_ftrs = model.classifier[2].in_features
-model.classifier[2] = nn.Sequential(
-    nn.Dropout(0.4),
-    nn.Linear(num_ftrs, len(class_names))
-)
-model.load_state_dict(torch.load(model_path, map_location=device))
-model = model.to(device)
-model.eval()
 
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomRotation(10),
-    transforms.ColorJitter(),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-])
+@st.cache_resource
+def load_model():
+    if not os.path.exists(MODEL_FILENAME):
+        gdown.download(MODEL_URL, MODEL_FILENAME, quiet=False)
 
-st.title("Blood Group Detection from Fingerprint")
-st.write("Upload a fingerprint image to predict the blood group.")
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png", "bmp", "webp"])
+    # Load the base model with pretrained weights
+    model = efficientnet_b3(weights=EfficientNet_B3_Weights.DEFAULT)
+    num_ftrs = model.classifier[1].in_features
+    model.classifier[1] = nn.Sequential(
+        nn.Dropout(0.4),
+        nn.Linear(num_ftrs, 8)  # 8 blood group classes
+    )
+
+    # Load saved checkpoint
+    checkpoint = torch.load(MODEL_FILENAME, map_location='cpu')
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.eval()
+
+    # Get class label mapping
+    class_to_idx = checkpoint.get('class_to_idx', {
+        'A+': 0, 'A-': 1, 'AB+': 2, 'AB-': 3,
+        'B+': 4, 'B-': 5, 'O+': 6, 'O-': 7
+    })
+    idx_to_class = {v: k for k, v in class_to_idx.items()}
+
+    return model, idx_to_class
+
+# === Load model ===
+model, idx_to_class = load_model()
+
+st.title("🩸 Blood Group Prediction (EfficientNet-B3)")
+
+uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png", "svg", "bmp"])
+
 if uploaded_file is not None:
-    image = Image.open(uploaded_file).convert('RGB')
-    st.image(image, caption="Uploaded Fingerprint", use_column_width=True)
-    try:
-        img_tensor = transform(image).unsqueeze(0).to(device)
-        with torch.no_grad():
-            outputs = model(img_tensor)
-            _, predicted = torch.max(outputs, 1)
-            prediction = class_names[predicted.item()]
-        st.success(f"Predicted Blood Group: {prediction}")
-    except Exception as e:
-        st.error(f"Error: {str(e)}")
+    image = Image.open(uploaded_file).convert("RGB")
+    st.image(image, caption="Uploaded Image", use_container_width=True)
+
+    transform = EfficientNet_B3_Weights.DEFAULT.transforms()
+    input_tensor = transform(image).unsqueeze(0)
+
+    with torch.no_grad():
+        outputs = model(input_tensor)
+        _, predicted = torch.max(outputs, 1)
+        predicted_label = idx_to_class[predicted.item()]
+        st.success(f"Predicted Blood Group: **{predicted_label}**")
