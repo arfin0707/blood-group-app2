@@ -7,9 +7,11 @@ import gdown
 import os
 
 # === Configuration ===
-MODEL_URL = "https://drive.google.com/uc?id=1GjN2Sdi2YpAVwZ06h2eLon4kp4iW2j1S"  # Updated model URL
-MODEL_FILENAME = "eff_model_1000.pth"
-
+# MODEL_URL = "https://drive.google.com/uc?id=1GjN2Sdi2YpAVwZ06h2eLon4kp4iW2j1S"  # Updated model URL
+# MODEL_FILENAME = "eff_model_1000.pth"
+MODEL_URL = "https://drive.google.com/uc?id=1DGTjqCX9us8dO2BxPink70S7SdCaHhPX"  # Updated model URL
+#https://drive.google.com/file/d/1DGTjqCX9us8dO2BxPink70S7SdCaHhPX/view?usp=sharing
+MODEL_FILENAME = "eff_model2_1000.pth"
 
 @st.cache_resource
 def load_model():
@@ -41,7 +43,24 @@ def load_model():
 # === Load model ===
 model, idx_to_class = load_model()
 
-st.title("🩸 Blood Group Prediction (EfficientNet-B3)")
+# st.title("🩸 Blood Group Prediction (EfficientNet-B3)")
+import streamlit as st
+
+st.title("🩸 Blood Group Prediction")
+
+# Small font details below the title
+st.markdown(
+    """
+    <p style='font-size: 14px; color: white;'>
+        Used EfficientNet-B3 <br>
+        Total images: 8000 <br>
+        Number of training images: 6400 <br>
+        Number of testing images: 1600
+    </p>
+    """,
+    unsafe_allow_html=True
+)
+
 
 uploaded_file = st.file_uploader("Upload an image", type=["jpg", "jpeg", "png", "svg", "bmp"])
 
